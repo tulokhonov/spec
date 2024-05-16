@@ -1,6 +1,7 @@
 package com.example.spec.service;
 
 import com.example.spec.service.entity.Person;
+import com.example.spec.service.exception.WalkerException;
 import com.example.spec.service.repository.PersonRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +24,7 @@ public class TreeWalker {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger log = LoggerFactory.getLogger(TreeWalker.class);
-    private final PersonRepository leadProfileRepository;
+    private final PersonRepository personRepository;
 
     public JsonNode convertJSONToNode(String json) throws IOException {
         return mapper.readTree(json);
@@ -31,7 +32,7 @@ public class TreeWalker {
 
     public List<Person> walkTree(JsonNode root) {
         Specification<Person> s = walker(root);
-        return leadProfileRepository.findAll(s);
+        return personRepository.findAll(s);
     }
 
     public <T> Specification<T> walker(JsonNode node) {
@@ -63,36 +64,43 @@ public class TreeWalker {
             } else {
                 return getSpec(node);
             }
-        } else return null;
+        } else
+            throw new WalkerException("Invalid JSON structure");
     }
 
     private <T> Specification<T> getSpec(JsonNode node) {
 
         try {
             if (!node.isObject())
-                throw new IllegalStateException("Object is expected");
+                throw new IllegalArgumentException("Object is expected");
+            if (!node.fields().hasNext())
+                throw new IllegalArgumentException("Invalid JSON structure");
 
             Map.Entry<String, JsonNode> fieldEntry = node.fields().next();
             String field = fieldEntry.getKey();
 
             if (!fieldEntry.getValue().isObject())
-                throw new IllegalStateException("Object is expected for field: " + field);
+                throw new IllegalArgumentException("Object is expected for field: " + field);
+
+            if (!fieldEntry.getValue().fields().hasNext())
+                throw new IllegalArgumentException("Invalid JSON structure");
 
             Map.Entry<String, JsonNode> opValueEntry = fieldEntry.getValue().fields().next();
             String op = opValueEntry.getKey();
             JsonNode vNode = opValueEntry.getValue();
             Object value = vNode.isTextual()
                     ? vNode.asText()
-                    : vNode.isNumber() ? vNode.asInt()
+                    : vNode.isNumber()
+                    ? vNode.asInt()
                     : vNode.textValue();
 
             log.info("{} {} {}", field, op, value);
             return (entity, cq, cb) -> cb.equal(entity.get(field), value);
 
         } catch (Exception e) {
-            // Implement object translation
+            // Implement exception translation
             log.error("Error!", e);
-            return null;
+            throw new WalkerException("Invalid JSON structure!", e);
         }
     }
 }
