@@ -5,7 +5,6 @@ import com.example.spec.service.exception.FilterException;
 import com.example.spec.service.repository.PersonRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -142,7 +141,7 @@ public class DynamicFilterService {
                         return cb.greaterThan(root.get(field), LocalDateTime.parse(value));
                     } else if (isLocalDate(path)) {
                         return cb.greaterThan(root.get(field), LocalDate.parse(value));
-                    }else if (isNumber(path)) {
+                    } else if (isNumber(path)) {
                         return cb.gt(root.get(field), (Number) parseStringToType(path.getJavaType(), value));
                     }
                     throw new IllegalArgumentException("'%s' operation supported only for numbers and dates".formatted(operation));

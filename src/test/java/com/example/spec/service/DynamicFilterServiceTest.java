@@ -92,7 +92,8 @@ class DynamicFilterServiceTest {
                                 "score": {
                                     "ge": 33.2
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -110,7 +111,8 @@ class DynamicFilterServiceTest {
                                 "date": {
                                     "ge": "2024-05-01T00:00:00"
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -128,7 +130,8 @@ class DynamicFilterServiceTest {
                                 "date": {
                                     "lt": "2024-05-11T00:00:00"
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -146,7 +149,8 @@ class DynamicFilterServiceTest {
                                 "date": {
                                     "le": "2024-05-11T12:00:00"
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -164,7 +168,8 @@ class DynamicFilterServiceTest {
                                 "score": {
                                     "eq": null
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -183,7 +188,8 @@ class DynamicFilterServiceTest {
                                 "score": {
                                     "!eq": null
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
@@ -201,7 +207,8 @@ class DynamicFilterServiceTest {
                                 "age": {
                                     "in": [10, 11, 12]
                                 }
-                            }                        ]
+                            }
+                           ]
                     }
                 }
                 """);
