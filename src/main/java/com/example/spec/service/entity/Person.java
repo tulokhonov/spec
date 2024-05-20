@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "t1")
@@ -22,4 +23,6 @@ public class Person {
     private int age;
 
     private BigDecimal score;
+
+    private LocalDateTime date;
 }

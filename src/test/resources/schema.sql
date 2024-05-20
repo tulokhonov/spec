@@ -3,5 +3,6 @@ CREATE TABLE public.t1 (
        name varchar NULL,
        age int4 NULL,
        score numeric NULL,
+       date timestamp,
        CONSTRAINT t1_pk PRIMARY KEY (id)
 );
