@@ -25,4 +25,6 @@ public class Person {
     private BigDecimal score;
 
     private LocalDateTime date;
+
+    private Boolean enrolled;
 }

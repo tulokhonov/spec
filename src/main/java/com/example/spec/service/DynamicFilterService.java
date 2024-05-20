@@ -1,10 +1,11 @@
 package com.example.spec.service;
 
 import com.example.spec.service.entity.Person;
-import com.example.spec.service.exception.WalkerException;
+import com.example.spec.service.exception.FilterException;
 import com.example.spec.service.repository.PersonRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.BinaryOperator;
@@ -43,7 +45,7 @@ public class DynamicFilterService {
             Iterator<Map.Entry<String, JsonNode>> fieldIterator = node.fields();
 
             if (!fieldIterator.hasNext()) {
-                throw new WalkerException("Empty object! Cannot determine predicate or logic operation");
+                throw new FilterException("Empty object! Cannot determine predicate or logic operation");
             }
             Map.Entry<String, JsonNode> filedEntry = fieldIterator.next();
 
@@ -52,11 +54,11 @@ public class DynamicFilterService {
                 log.debug(filedEntry.getKey().equals("AND") ? "AND" : "OR");
 
                 if (!filedEntry.getValue().isArray()) {
-                    throw new WalkerException("Array is expected for logic operations: " + node);
+                    throw new FilterException("Array is expected for logic operations: " + node);
                 }
 
                 Iterator<JsonNode> arrayItemsIterator = filedEntry.getValue().elements();
-                if (!arrayItemsIterator.hasNext()) throw new WalkerException("Empty predicates list: " + node);
+                if (!arrayItemsIterator.hasNext()) throw new FilterException("Empty predicates list: " + node);
 
                 List<Specification<T>> specifications = new ArrayList<>();
                 while (arrayItemsIterator.hasNext()) {
@@ -71,14 +73,14 @@ public class DynamicFilterService {
 
                 Specification<T> combinedSpec = specifications.stream()
                         .reduce(operator)
-                        .orElseThrow(() -> new WalkerException("Error combining specifications"));
+                        .orElseThrow(() -> new FilterException("Error combining specifications"));
 
                 return combinedSpec;
             } else {
                 return parseJsonNode(node);
             }
         } else
-            throw new WalkerException("Object is expected to describe predicate or logic operations!");
+            throw new FilterException("Object is expected to describe predicate or logic operations!");
     }
 
     private <T> Specification<T> parseJsonNode(JsonNode node) {
@@ -107,7 +109,7 @@ public class DynamicFilterService {
 
         } catch (Exception e) {
             log.error("Error!", e);
-            throw new WalkerException("Error parsing predicate!", e);
+            throw new FilterException("Error parsing predicate!", e);
         }
     }
 
@@ -138,32 +140,40 @@ public class DynamicFilterService {
                 case "gt": {
                     if (isLocalDateTime(path)) {
                         return cb.greaterThan(root.get(field), LocalDateTime.parse(value));
-                    } else if (isNumber(path)) {
-                        return cb.gt(root.get(field), parseStringToNumber(path.getJavaType(), value));
+                    } else if (isLocalDate(path)) {
+                        return cb.greaterThan(root.get(field), LocalDate.parse(value));
+                    }else if (isNumber(path)) {
+                        return cb.gt(root.get(field), (Number) parseStringToType(path.getJavaType(), value));
                     }
                     throw new IllegalArgumentException("'%s' operation supported only for numbers and dates".formatted(operation));
                 }
                 case "ge": {
                     if (isLocalDateTime(path)) {
                         return cb.greaterThanOrEqualTo(root.get(field), LocalDateTime.parse(value));
+                    } else if (isLocalDate(path)) {
+                        return cb.greaterThanOrEqualTo(root.get(field), LocalDate.parse(value));
                     } else if (isNumber(path)) {
-                        return cb.ge(root.get(field), parseStringToNumber(path.getJavaType(), value));
+                        return cb.ge(root.get(field), (Number) parseStringToType(path.getJavaType(), value));
                     }
                     throw new IllegalArgumentException("'%s' operation supported only for numbers and dates".formatted(operation));
                 }
                 case "lt": {
                     if (isLocalDateTime(path)) {
                         return cb.lessThan(root.get(field), LocalDateTime.parse(value));
+                    } else if (isLocalDate(path)) {
+                        return cb.lessThan(root.get(field), LocalDate.parse(value));
                     } else if (isNumber(path)) {
-                        return cb.lt(root.get(field), parseStringToNumber(path.getJavaType(), value));
+                        return cb.lt(root.get(field), (Number) parseStringToType(path.getJavaType(), value));
                     }
                     throw new IllegalArgumentException("'%s' operation supported only for numbers and dates".formatted(operation));
                 }
                 case "le": {
                     if (isLocalDateTime(path)) {
                         return cb.lessThanOrEqualTo(root.get(field), LocalDateTime.parse(value));
+                    } else if (isLocalDate(path)) {
+                        return cb.lessThanOrEqualTo(root.get(field), LocalDate.parse(value));
                     } else if (isNumber(path)) {
-                        return cb.le(root.get(field), parseStringToNumber(path.getJavaType(), value));
+                        return cb.le(root.get(field), (Number) parseStringToType(path.getJavaType(), value));
                     }
                     throw new IllegalArgumentException("'%s' operation supported only for numbers and dates".formatted(operation));
                 }
@@ -201,51 +211,50 @@ public class DynamicFilterService {
         return list;
     }
 
-    private static boolean isNumber(Path<?> path) {
+    private static boolean isNumber(Path<Object> path) {
         return Number.class.isAssignableFrom(path.getJavaType());
     }
 
-    private boolean isLocalDateTime(Path<?> path) {
+    private static boolean isLocalDateTime(Path<Object> path) {
         return path.getJavaType().isAssignableFrom(LocalDateTime.class);
     }
 
+    private static boolean isLocalDate(Path<Object> path) {
+        return path.getJavaType().isAssignableFrom(LocalDate.class);
+    }
+
     private Object parseStringToType(Class<?> fieldType, String value) {
-        if (fieldType.isAssignableFrom(BigDecimal.class)) {
-            return new BigDecimal(value);
-        } else if (fieldType.isAssignableFrom(Integer.class)) {
-            return Integer.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Long.class)) {
-            return Long.valueOf(value);
+        if (Number.class.isAssignableFrom(fieldType)) {
+            if (fieldType.isAssignableFrom(BigDecimal.class)) {
+                return new BigDecimal(value);
+            } else if (fieldType.isAssignableFrom(Integer.class)) {
+                return Integer.valueOf(value);
+            } else if (fieldType.isAssignableFrom(Long.class)) {
+                return Long.valueOf(value);
+            } else if (fieldType.isAssignableFrom(Double.class)) {
+                return Double.valueOf(value);
+            } else if (fieldType.isAssignableFrom(Float.class)) {
+                return Float.valueOf(value);
+            } else if (fieldType.isAssignableFrom(Short.class)) {
+                return Short.valueOf(value);
+            } else if (fieldType.isAssignableFrom(Byte.class)) {
+                return Byte.valueOf(value);
+            }
         } else if (fieldType.isAssignableFrom(String.class)) {
             return value;
         } else if (fieldType.isAssignableFrom(LocalDateTime.class)) {
             return LocalDateTime.parse(value);
+        } else if (fieldType.isAssignableFrom(LocalDate.class)) {
+            return LocalDate.parse(value);
+        }else if (fieldType.isAssignableFrom(Boolean.class)) {
+            return Boolean.valueOf(value);
         }
-        return value;
+        throw new FilterException("Field type '%s' is not supported!".formatted(fieldType));
     }
 
     private Object parseStringToType(Class<?> fieldType, List<String> values) {
         return values.stream()
                 .map(e -> parseStringToType(fieldType, e))
                 .collect(Collectors.toList());
-    }
-
-    private Number parseStringToNumber(Class<?> fieldType, String value) {
-        if (fieldType.isAssignableFrom(BigDecimal.class)) {
-            return new BigDecimal(value);
-        } else if (fieldType.isAssignableFrom(Integer.class)) {
-            return Integer.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Long.class)) {
-            return Long.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Double.class)) {
-            return Double.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Float.class)) {
-            return Float.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Short.class)) {
-            return Short.valueOf(value);
-        } else if (fieldType.isAssignableFrom(Byte.class)) {
-            return Byte.valueOf(value);
-        }
-        throw new WalkerException("Field type '%s' is not supported!".formatted(fieldType));
     }
 }

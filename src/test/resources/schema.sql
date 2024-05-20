@@ -4,5 +4,6 @@ CREATE TABLE public.t1 (
        age int4 NULL,
        score numeric NULL,
        date timestamp,
+       enrolled boolean NULL,
        CONSTRAINT t1_pk PRIMARY KEY (id)
 );

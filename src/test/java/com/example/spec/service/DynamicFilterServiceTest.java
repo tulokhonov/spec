@@ -247,4 +247,23 @@ class DynamicFilterServiceTest {
 
         assertEquals(4, list.size());
     }
+
+    @Test
+    void test12() throws IOException {
+        JsonNode node = treeWalker.convertJSONToNode("""
+                {
+                    "AND": [
+                            {
+                                "enrolled": {
+                                    "eq": true
+                                }
+                            }
+                           ]
+                    }
+                }
+                """);
+        List<Person> list = treeWalker.getAllPersons(node);
+
+        assertEquals(2, list.size());
+    }
 }
